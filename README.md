@@ -5,7 +5,7 @@
 P1 болон аюулгүй байдлын хүсэлтэд **нэн даруй мэдэгдэл** илгээдэг AI агент.
 
 - **Python 3.13 + Streamlit**: вэб интерфейс (Streamlit Community Cloud дээр үнэгүй нийтийн URL)
-- **Gemini API** (`gemini-3.5-flash-lite`, анхдагч) эсвэл **Claude API** (`LLM_PROVIDER`): structured output (Pydantic schema)
+- **Gemini API** (`gemini-3.1-flash-lite`, анхдагч) эсвэл **Claude API** (`LLM_PROVIDER`): structured output (Pydantic schema)
 - **SQLite** (local) эсвэл **Postgres/Neon** (`DATABASE_URL`): тикет, мэдэгдэл, аудит лог, тохиргоо
 - **Telegram Bot**: P1, Security, major incident, SLA сануулга
 

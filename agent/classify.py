@@ -116,7 +116,7 @@ def provider() -> str:
 
 def model_name() -> str:
     if provider() == "gemini":
-        return setting("GEMINI_MODEL", "gemini-3.5-flash-lite")
+        return setting("GEMINI_MODEL", "gemini-3.1-flash-lite")
     return setting("ANTHROPIC_MODEL", "claude-sonnet-5-5")
 
 
@@ -133,7 +133,7 @@ def _anthropic_client(key: str) -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=key)
 
 
-GEMINI_FALLBACKS = ["gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
+GEMINI_FALLBACKS = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite"]
 
 
 def _retry_delay(err: Exception) -> float:
