@@ -13,6 +13,7 @@ from typing import Optional
 import anthropic
 from pydantic import BaseModel, Field
 
+from . import db
 from .config import setting
 from .kb import KB_IDS, kb_prompt_text
 from .models import Decision, Level, Location, Service, Team, TicketType
@@ -116,7 +117,8 @@ def provider() -> str:
 
 def model_name() -> str:
     if provider() == "gemini":
-        return setting("GEMINI_MODEL", "gemini-3.1-flash-lite")
+        # Админ "Хяналт" хуудаснаас сонгосон загвар хамгийн өндөр ач холбогдолтой
+        return db.get_setting("gemini_model") or setting("GEMINI_MODEL", "gemini-3.1-flash-lite")
     return setting("ANTHROPIC_MODEL", "claude-sonnet-5-5")
 
 
@@ -141,6 +143,54 @@ def _retry_delay(err: Exception) -> float:
     return min(float(m.group(1)) + 1, 60) if m else 10
 
 
+_QUOTA_PERIOD = {"PerDay": "өдөрт", "PerMinute": "минутад"}
+
+
+def describe_error(err: Exception) -> str:
+    """Gemini-ийн алдааг товч болгоно: "429 өдөрт 20", "503 ачаалалтай" г.м."""
+    text = str(err)
+    code = getattr(err, "code", None) or text[:3]
+    if str(code) == "429":
+        quota_id = re.search(r"quotaId': '([^']+)'", text)
+        value = re.search(r"quotaValue': '([^']+)'", text)
+        period = next((v for k, v in _QUOTA_PERIOD.items() if quota_id and k in quota_id.group(1)), "")
+        return f"429 квот: {period} {value.group(1)}".strip() if value else "429 квот хэтэрсэн"
+    if str(code) == "503":
+        return "503 ачаалалтай"
+    if str(code) == "404":
+        return "404 олдсонгүй"
+    return f"{code} алдаа"
+
+
+# Текст боловсруулах боломжгүй (дуу, зураг г.м.) загваруудыг сонголтоос хасна
+_NON_TEXT = re.compile(r"tts|image|transcribe|robotics|computer-use|customtools|omni|banana|embedding|audio|live")
+
+
+def list_gemini_models() -> list[str]:
+    key = setting("GEMINI_API_KEY")
+    if not key:
+        return []
+    names = [
+        m.name.removeprefix("models/")
+        for m in _gemini_client(key).models.list()
+        if "generateContent" in (m.supported_actions or [])
+    ]
+    return sorted(n for n in names if n.startswith("gemini-") and not _NON_TEXT.search(n))
+
+
+def probe_gemini_model(model: str) -> str:
+    """Загварт жижиг хүсэлт илгээж ажиллаж байгаа эсэхийг шалгана (1 хүсэлтийн квот зарцуулна)."""
+    from google.genai import errors
+
+    try:
+        _gemini_client(setting("GEMINI_API_KEY")).models.generate_content(model=model, contents="Say OK")
+        status = "ok"
+    except errors.APIError as e:
+        status = describe_error(e)
+    db.log_llm_call(model, status)
+    return status
+
+
 def _classify_gemini(masked_text: str) -> LlmOutput:
     from google.genai import errors, types
 
@@ -162,11 +212,13 @@ def _classify_gemini(masked_text: str) -> LlmOutput:
             response = _gemini_client(key).models.generate_content(
                 model=model, contents=USER_TEMPLATE.format(text=masked_text), config=config,
             )
+            db.log_llm_call(model, "ok")
             if isinstance(response.parsed, LlmOutput):
                 return response.parsed
             return LlmOutput.model_validate_json(response.text or "{}")
         except errors.APIError as e:
             last_error = e
+            db.log_llm_call(model, describe_error(e))
             if e.code == 429:
                 time.sleep(_retry_delay(e))
             elif e.code in (500, 503):

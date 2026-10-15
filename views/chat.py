@@ -15,7 +15,6 @@ EXAMPLES = [
     "Маркетингийн дарга байна. Ж.Ануд Finance-Reports Shared drive-д хандах эрх өгөөч, би зөвшөөрч байна.",
     "Darkhan salbar VPN unaagaad bna, hariltsagchid huleej bn",
 ]
-CHANNELS = {"Вэб форм": "web", "Имэйл": "email", "Google Chat": "chat", "Telegram": "telegram"}
 MAX_PER_MINUTE = 15
 
 st.session_state.setdefault("history", [])
@@ -29,7 +28,7 @@ def rate_limited() -> bool:
     return len(st.session_state.hits) > MAX_PER_MINUTE
 
 
-def send(message: str, channel: str) -> None:
+def send(message: str) -> None:
     message = message.strip()
     if not message:
         return
@@ -41,7 +40,7 @@ def send(message: str, channel: str) -> None:
         return
     try:
         with st.spinner("Агент боловсруулж байна…"):
-            st.session_state.history.insert(0, (message, process_message(message, channel)))
+            st.session_state.history.insert(0, (message, process_message(message, "web")))
     except Exception as e:  # хэрэглэгчийн текст алдааны мэдээнд орохгүй
         st.session_state.history.insert(0, (message, f"Алдаа: {e}"))
 
@@ -103,15 +102,14 @@ with left:
     st.caption("Кирилл, латин үсгээр бичсэн монгол эсвэл англи хэлээр бичнэ үү. Нэг мессежид олон хүсэлт байж болно.")
     with st.form("send", clear_on_submit=True):
         text = st.text_area("Мессеж", height=140, max_chars=3000, placeholder="Жишээ: Принтер хэвлэхгүй байна...")
-        channel = st.selectbox("Суваг", list(CHANNELS))
         if st.form_submit_button("Илгээх", type="primary", width="stretch"):
-            send(text, CHANNELS[channel])
+            send(text)
 
     st.markdown("**Жишээ мессежүүд**")
     st.caption("Дарахад шууд илгээгдэнэ. Өөрийн шинэ мессежээр ч туршиж болно.")
     for i, ex in enumerate(EXAMPLES):
         if st.button(ex, key=f"ex{i}", width="stretch"):
-            send(ex, "web")
+            send(ex)
 
 with right:
     if not st.session_state.history:

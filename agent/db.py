@@ -11,6 +11,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import asdict
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 from .config import setting
@@ -24,6 +25,7 @@ SCHEMA = [
     "CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, data TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS audit_log (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, kind TEXT NOT NULL, detail TEXT NOT NULL)",
     "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS llm_calls (id TEXT PRIMARY KEY, created_at TEXT NOT NULL, model TEXT NOT NULL, status TEXT NOT NULL)",
 ]
 
 _initialized = False
@@ -139,3 +141,30 @@ def set_setting(key: str, value: str) -> None:
 
 def is_agent_enabled() -> bool:
     return get_setting("agent_enabled") != "false"
+
+
+# ---------- LLM хэрэглээ ----------
+def log_llm_call(model: str, status: str) -> None:
+    """status: "ok" эсвэл алдааны товч тайлбар ("429 өдөрт 20" г.м.)."""
+    _exec("INSERT INTO llm_calls (id, created_at, model, status) VALUES (?, ?, ?, ?)",
+          (new_id("LLM"), now_iso(), model, status))
+
+
+def quota_day_start() -> str:
+    # Gemini-ийн өдрийн квот Pacific цагаар шөнө дунд тэглэгддэг
+    pacific = datetime.now(ZoneInfo("America/Los_Angeles")).replace(hour=0, minute=0, second=0, microsecond=0)
+    return pacific.astimezone(timezone.utc).isoformat()
+
+
+def llm_usage_today() -> dict[str, dict]:
+    rows = _exec("SELECT model, status, created_at FROM llm_calls WHERE created_at >= ? ORDER BY created_at",
+                 (quota_day_start(),))
+    usage: dict[str, dict] = {}
+    for model, status, created_at in rows:
+        u = usage.setdefault(model, {"ok": 0, "errors": 0, "last_status": "", "last_at": ""})
+        if status == "ok":
+            u["ok"] += 1
+        else:
+            u["errors"] += 1
+        u["last_status"], u["last_at"] = status, created_at
+    return usage
