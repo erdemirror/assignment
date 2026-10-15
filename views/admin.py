@@ -5,7 +5,9 @@ from agent import db
 from agent.classify import list_gemini_models, model_name, probe_gemini_model, provider
 from agent.config import setting
 from agent.sla import run_sla_check, sla_overview
-from views.common import PRIORITY_COLOR, admin_unlocked, badge, fmt_time
+from views.common import PRIORITY_COLOR, admin_unlocked, badge, fmt_time, page_header
+
+page_header("🛡️", "Хяналт", "Агентыг унтраах, LLM загвар сонгох, SLA явц, мэдэгдэл болон аудит лог.")
 
 # Тусдаа cron байхгүй тул хуудас нээгдэх бүрт SLA шалгана
 run_sla_check()

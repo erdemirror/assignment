@@ -8,7 +8,7 @@ import streamlit as st
 from agent import db
 from agent.classify import model_name, provider
 from agent.testsuite import TESTS, run_case, to_markdown
-from views.common import admin_unlocked
+from views.common import admin_unlocked, page_header
 
 COLUMNS = ["ID", "Мессеж", "Ангилал", "Эрэмбэ", "Шийдвэр", "Баг", "KB", "Үнэлгээ", "Хариу"]
 COLUMN_CONFIG = {
@@ -21,9 +21,9 @@ COLUMN_CONFIG = {
 def show_results(rows: list[dict], header: str) -> None:
     ok = sum(r["Зөв"] for r in rows)
     c1, c2, c3 = st.columns(3)
-    c1.metric("Нарийвчлал", f"{round(ok / len(rows) * 100)}%")
-    c2.metric("Зөв", f"{ok} / {len(rows)}")
-    c3.metric("Алдаатай", len(rows) - ok)
+    c1.metric("Нарийвчлал", f"{round(ok / len(rows) * 100)}%", border=True)
+    c2.metric("Зөв", f"{ok} / {len(rows)}", border=True)
+    c3.metric("Алдаатай", len(rows) - ok, border=True)
     st.caption(header)
     st.dataframe([{k: r[k] for k in COLUMNS} for r in rows], column_config=COLUMN_CONFIG, hide_index=True, width="stretch")
     st.download_button(
@@ -34,10 +34,10 @@ def show_results(rows: list[dict], header: str) -> None:
     )
 
 
-st.subheader("Тест (20 мессеж)")
-st.caption(
+page_header(
+    "🧪", "Тест (20 мессеж)",
     "Даалгаврын 7-р хэсгийн 20 тест мессежийг агентаар дараалан ажиллуулж, хүлээгдэж буй үр дүнтэй харьцуулна. "
-    "Эргэлзээтэй тохиолдолд үндэслэлтэй хэд хэдэн хувилбарыг зөв гэж тооцно (доорх хүснэгтийг үз)."
+    "Эргэлзээтэй тохиолдолд үндэслэлтэй хэд хэдэн хувилбарыг зөв гэж тооцно.",
 )
 
 with st.expander("Хүлээгдэж буй үр дүн"):

@@ -5,3 +5,4 @@ data/
 .streamlit/secrets.toml
 .env
 test-results.md
+docs/
